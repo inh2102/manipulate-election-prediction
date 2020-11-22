@@ -42,14 +42,14 @@ head(hibbs)
 ```
 
 ```{r}
-GDPC1 <- read_csv("GDPC1.csv") %>% 
-  filter(substr(DATE,6,7)=="10"&DATE>"1952-01-01") %>%
-  mutate(year = year(DATE))
+GDPCA <- read_csv("GDPCA.csv") %>% 
+  mutate(DATE = lubridate::parse_date_time(DATE,orders='dmy'),
+    year = year(DATE))
 
-head(GDPC1)
+head(GDPCA)
 
-hibbs <- inner_join(GDPC1,hibbs,by='year') %>% 
-  rename(gdp=GDPC1)
+hibbs <- inner_join(GDPCA,hibbs,by='year') %>%
+  mutate(gdp = as.numeric(substr(gdp,1,4)))
 
 head(hibbs)
 ```
@@ -113,6 +113,17 @@ axis(2, seq(45,60,5), paste(seq(45,60,5),"%",sep=""), mgp=c(2,.5,0))
 with(hibbs, text(growth, vote, year, cex=.8))
 abline(50, 0, lwd=.5, col="gray")
 ```
+
+```{r}
+ggplot(hibbs,aes(x=gdp,y=vote)) + 
+  geom_line(linetype='dashed') +
+  geom_smooth(method='lm',se=F) +
+  geom_text(aes(x=gdp,y=vote,label=year)) +
+  geom_text(aes(x=5.4,y=46.5,label='Ross Perot?')) +
+  geom_text(aes(x=5.4,y=49,label='Gerald Ford')) +
+  labs(x="Real GDP growth (%)",y="Incumbent party's vote share")
+```
+
 ```{r eval=FALSE, include=FALSE}
 if (savefigs) dev.off()
 ```
@@ -124,8 +135,14 @@ progress output. This is useful for small data with fast
 computation. For more complex models and bigger data, it can be
 useful to see the progress.
 
+```{r}
+# https://statswithr.github.io/book/bayesian-model-choice.html
+m1.lm <- lm(data=hibbs,vote~gdp+growth)
+m1.step <- step(m1.lm,k=log(n)) # BIC model selection
+```
+
 ```{r }
-M1 <- stan_glm(vote ~ growth + gdp, data = hibbs, refresh = 0)
+M1 <- stan_glm(vote ~ growth, data = hibbs, refresh = 0)
 ```
 
 Print default summary of the fitted model
